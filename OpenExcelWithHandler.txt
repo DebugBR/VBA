@@ -1,0 +1,97 @@
+Sub testOpenExcelWithHandler()
+    Dim foo     As Boolean
+    Dim wb      As Workbook
+    
+    foo = openExcelWithHandler(shSetup.Range("A11"), wb)
+    
+    Debug.Print wb.Name
+End Sub
+
+Function openExcelWithHandler(rFullName As Range, wbExt As Workbook) As Boolean
+Dim blAnswer            As Integer
+Dim fd                  As FileDialog
+
+    'Check if the file exist and if it is a valid excel file
+     If Not FSO.FileExists(rFullName.value) Or Not rFullName.value Like "*.xls*" Then
+        'If dont browser for one
+        Set fd = Application.FileDialog(msoFileDialogFilePicker)
+        
+        With fd
+            .AllowMultiSelect = False
+            .Title = "Please select a valid excel file"
+            
+            'Empty the list by clearing the FileDialogFilters collection.
+            .Filters.Clear
+            
+            'Add a filter that includes GIF and JPEG images and make it the first item in the list.
+            .Filters.Add "Excel", "*.xlsx; *.xls; *.xlsm; *.xlsb", 1
+            
+            .Show
+        End With
+        
+        'If Selected one
+        If fd.SelectedItems.Count > 0 Then
+            blAnswer = MsgBox("Would you like to update the Setup path?", vbQuestion + vbYesNo, "Update Setup")
+            If blAnswer = vbYes Then
+                'Update SETUP
+                rFullName.value = fd.SelectedItems.Item(1)
+            End If
+        Else
+            openExcelWithHandler = False
+            Exit Function
+        End If
+        
+      End If
+      
+        'Check if file is already open
+        openExcelWithHandler = IsWorkBookAlreadyOpen(FSO.GetFileName(rFullName.value))
+        If openExcelWithHandler = False Then
+             'Check if have exclusive write acess to the file
+             If IsFileWriteable(rFullName.value) Then
+                 'Open file for writing
+                 Set wbExt = Workbooks.Open(rFullName.value)
+                 openExcelWithHandler = True
+             Else
+                openExcelWithHandler = False
+                Exit Function
+             End If
+         Else
+            Set wbExt = Workbooks(FSO.GetFileName(rFullName.value))
+            openExcelWithHandler = True
+         End If
+            
+End Function
+
+Function IsFileWriteable(strFullName As String) As Boolean
+    Dim FileNum     As Integer
+    
+    IsFileWriteable = False
+    FileNum = FreeFile
+    
+    On Error Resume Next
+        ' Open file and lock it
+        Open strFullName For Input Lock Read Write As #FileNum
+            If err.number = 0 Then
+                'Can write to file
+                IsFileWriteable = True
+            End If
+        Close FileNum
+    On Error GoTo 0
+    
+End Function
+
+Function IsWorkBookAlreadyOpen(strFullName As String) As Boolean
+    Dim iNum        As Integer
+    Dim i           As Integer
+    
+    iNum = Application.Workbooks.Count
+    For i = 1 To iNum
+        If Application.Workbooks(i).Name Like "*" & strFullName & "*" Then
+            IsWorkBookAlreadyOpen = True
+            Exit Function
+        End If
+    Next
+    
+    IsWorkBookAlreadyOpen = False
+
+End Function
